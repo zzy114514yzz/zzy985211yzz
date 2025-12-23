@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扫码抽奖系统</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px; color: #333;
+        }
+        .container { 
+            max-width: 500px; margin: 0 auto; background: white; 
+            padding: 30px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            text-align: center; color: #e74c3c; margin-bottom: 30px;
+            font-size: 28px; font-weight: bold;
+        }
+        .prizes { 
+            background: #f8f9fa; padding: 20px; border-radius: 10px;
+            margin-bottom: 25px; border-left: 4px solid #e74c3c;
+        }
+        .prize-item { 
+            display: flex; justify-content: space-between; 
+            padding: 8px 0; border-bottom: 1px solid #eee;
+        }
+        .prize-item:last-child { border-bottom: none; }
+        .form-group { margin-bottom: 20px; }
+        input { 
+            width: 100%; padding: 15px; border: 2px solid #ddd; 
+            border-radius: 10px; font-size: 16px; transition: border-color 0.3s;
+        }
+        input:focus { 
+            outline: none; border-color: #667eea; 
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        button { 
+            width: 100%; padding: 16px; background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white; border: none; border-radius: 10px; 
+            font-size: 18px; font-weight: bold; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 20px rgba(231, 76, 60, 0.3);
+        }
+        button:active { transform: translateY(0); }
+        .result { 
+            margin-top: 25px; padding: 20px; border-radius: 10px;
+            display: none; animation: fadeIn 0.5s;
+        }
+        .success { 
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border: 2px solid #28a745; color: #155724;
+        }
+        .error { 
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            border: 2px solid #dc3545; color: #721c24;
+        }
+        .qr-section { 
+            text-align: center; margin: 30px 0; padding: 20px;
+            background: white; border-radius: 15px;
+        }
+        .qr-code { 
+            max-width: 200px; margin: 15px auto; display: block;
+            border: 10px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loading { 
+            display: none; text-align: center; color: #666;
+            font-size: 16px; margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 幸运抽奖系统</h1>
+        
+        <div class="qr-section">
+            <h3>📱 微信扫码参与</h3>
+            <img class="qr-code" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://your-app.vercel.app" 
+                 alt="抽奖二维码">
+            <p style="color: #666; margin-top: 10px; font-size: 14px;">
+                部署后自动显示真实网址
+            </p>
+        </div>
+
+        <div class="prizes">
+            <h3>🎁 奖品设置</h3>
+            <div class="prize-item"><span>一等奖</span><span>头戴式耳机 (1份)</span></div>
+            <div class="prize-item"><span>二等奖</span><span>小风扇 (1份)</span></div>
+            <div class="prize-item"><span>三等奖</span><span>笔记本 (7份)</span></div>
+            <div class="prize-item"><span>四等奖</span><span>手机支架 (3份)</span></div>
+        </div>
+
+        <form id="lotteryForm">
+            <div class="form-group">
+                <input type="text" name="name" placeholder="请输入您的姓名" required>
+            </div>
+            <div class="form-group">
+                <input type="tel" name="phone" placeholder="请输入11位手机号" required 
+                       pattern="[0-9]{11}" title="请输入11位数字手机号">
+            </div>
+            <button type="submit">🎲 开始抽奖</button>
+        </form>
+
+        <div class="loading" id="loading">⏳ 抽奖中...</div>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('lotteryForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const resultDiv = document.getElementById('result');
+            const loading = document.getElementById('loading');
+            const submitBtn = form.querySelector('button');
+            
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // 显示加载中
+            loading.style.display = 'block';
+            submitBtn.disabled = true;
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/lottery', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>🎉 恭喜您中奖了！</h3>
+                        <p><strong>姓名：</strong>${result.name}</p>
+                        <p><strong>手机：</strong>${result.phone}</p>
+                        <p><strong>奖项：</strong>${result.prize_name}</p>
+                        <p><strong>奖品：</strong>${result.prize_item}</p>
+                        <p><strong>抽奖码：</strong></p>
+                        <div style="font-size: 24px; color: #e74c3c; font-weight: bold; 
+                                  padding: 10px; background: #fff; border-radius: 8px; 
+                                  margin: 10px 0; text-align: center;">
+                            ${result.lottery_code}
+                        </div>
+                        <p>请截图保存此页面，凭抽奖码领取奖品</p>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ 抽奖结果</h3>
+                        <p>${result.message}</p>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ 网络错误</h3>
+                    <p>请检查网络连接后重试</p>
+                `;
+            } finally {
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+                resultDiv.style.display = 'block';
+                form.reset();
+            }
+        });
+
+        // 自动更新二维码
+        document.addEventListener('DOMContentLoaded', function() {
+            const qrImg = document.querySelector('.qr-code');
+            if (qrImg) {
+                const currentUrl = window.location.href;
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(currentUrl)}`;
+                const urlDisplay = qrImg.nextElementSibling;
+                urlDisplay.innerHTML = `或访问: <strong>${currentUrl}</strong>`;
+            }
+        });
+    </script>
+</body>
+</html>
