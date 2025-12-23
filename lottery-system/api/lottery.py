@@ -20,7 +20,6 @@ class handler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def handle_lottery(self):
-        # 允许跨域
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
@@ -39,12 +38,13 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(error_result).encode())
 
     def process_lottery(self, data):
-        # 奖品设置
+        # 修改后的奖品设置 - 加入"谢谢参与"
         prizes = {
-            "一等奖": {"name": "头戴式耳机", "count": 1, "issued": 0},
-            "二等奖": {"name": "小风扇", "count": 1, "issued": 0},
-            "三等奖": {"name": "笔记本", "count": 7, "issued": 0},
-            "四等奖": {"name": "手机支架", "count": 3, "issued": 0}
+            "一等奖": {"name": "头戴式耳机", "count": 1, "weight": 5},
+            "二等奖": {"name": "小风扇", "count": 1, "weight": 10},
+            "三等奖": {"name": "笔记本", "count": 7, "weight": 20},
+            "四等奖": {"name": "手机支架", "count": 3, "weight": 30},
+            "谢谢参与": {"name": "谢谢参与", "count": 100, "weight": 35}  # 新增谢谢参与
         }
 
         phone = data.get('phone', '')
@@ -56,15 +56,25 @@ class handler(BaseHTTPRequestHandler):
         if len(phone) != 11:
             return {"success": False, "message": "请输入11位手机号"}
 
-        # 简化的抽奖逻辑
-        available_prizes = []
+        # 创建加权抽奖池
+        prize_pool = []
         for prize_name, prize_info in prizes.items():
-            available_prizes.append(prize_name)
+            # 每个奖项根据权重添加相应次数
+            prize_pool.extend([prize_name] * prize_info['weight'])
 
-        if not available_prizes:
-            return {"success": False, "message": "所有奖品都已抽完"}
+        # 随机抽奖
+        selected_prize = random.choice(prize_pool)
 
-        selected_prize = random.choice(available_prizes)
+        # 如果是实物奖品，检查库存
+        if selected_prize != "谢谢参与":
+            if prizes[selected_prize]['count'] <= 0:
+                # 如果该奖品已抽完，自动转为谢谢参与
+                selected_prize = "谢谢参与"
+            else:
+                # 减少实物奖品库存
+                prizes[selected_prize]['count'] -= 1
+
+        # 生成抽奖码
         lottery_code = hashlib.md5(f"{phone}{name}{datetime.now()}".encode()).hexdigest()[:8].upper()
 
         return {
@@ -73,5 +83,8 @@ class handler(BaseHTTPRequestHandler):
             "phone": phone,
             "prize_name": selected_prize,
             "prize_item": prizes[selected_prize]["name"],
-            "lottery_code": lottery_code
+            "lottery_code": lottery_code,
+            "is_prize": selected_prize != "谢谢参与"  # 新增字段，方便前端判断
+        }
+
         }

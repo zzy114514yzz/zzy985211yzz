@@ -60,6 +60,11 @@
             background: linear-gradient(135deg, #f8d7da, #f5c6cb);
             border: 2px solid #dc3545; color: #721c24;
         }
+        .thanks { 
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border: 2px solid #2196f3; color: #0d47a1;
+            text-align: center;
+        }
         .qr-section { 
             text-align: center; margin: 30px 0; padding: 20px;
             background: white; border-radius: 15px;
@@ -75,6 +80,11 @@
         .loading { 
             display: none; text-align: center; color: #666;
             font-size: 16px; margin: 10px 0;
+        }
+        .prize-stats {
+            margin-top: 15px; padding: 10px; background: #fff3cd;
+            border-radius: 5px; border-left: 4px solid #ffc107;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -92,11 +102,16 @@
         </div>
 
         <div class="prizes">
-            <h3>🎁 奖品设置</h3>
-            <div class="prize-item"><span>一等奖</span><span>头戴式耳机 (1份)</span></div>
-            <div class="prize-item"><span>二等奖</span><span>小风扇 (1份)</span></div>
-            <div class="prize-item"><span>三等奖</span><span>笔记本 (7份)</span></div>
-            <div class="prize-item"><span>四等奖</span><span>手机支架 (3份)</span></div>
+            <h3>🎁 奖品设置 & 中奖概率</h3>
+            <div class="prize-item"><span>一等奖</span><span>头戴式耳机 (5%概率)</span></div>
+            <div class="prize-item"><span>二等奖</span><span>小风扇 (10%概率)</span></div>
+            <div class="prize-item"><span>三等奖</span><span>笔记本 (20%概率)</span></div>
+            <div class="prize-item"><span>四等奖</span><span>手机支架 (30%概率)</span></div>
+            <div class="prize-item"><span>谢谢参与</span><span>感谢参与 (35%概率)</span></div>
+            
+            <div class="prize-stats">
+                💡 中奖概率说明：每个奖项都有机会中奖，谢谢参与也是满满的祝福哦！
+            </div>
         </div>
 
         <form id="lotteryForm">
@@ -110,7 +125,7 @@
             <button type="submit">🎲 开始抽奖</button>
         </form>
 
-        <div class="loading" id="loading">⏳ 抽奖中...</div>
+        <div class="loading" id="loading">⏳ 抽奖中，好运即将降临...</div>
         
         <div id="result" class="result"></div>
     </div>
@@ -144,21 +159,43 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    resultDiv.className = 'result success';
-                    resultDiv.innerHTML = `
-                        <h3>🎉 恭喜您中奖了！</h3>
-                        <p><strong>姓名：</strong>${result.name}</p>
-                        <p><strong>手机：</strong>${result.phone}</p>
-                        <p><strong>奖项：</strong>${result.prize_name}</p>
-                        <p><strong>奖品：</strong>${result.prize_item}</p>
-                        <p><strong>抽奖码：</strong></p>
-                        <div style="font-size: 24px; color: #e74c3c; font-weight: bold; 
-                                  padding: 10px; background: #fff; border-radius: 8px; 
-                                  margin: 10px 0; text-align: center;">
-                            ${result.lottery_code}
-                        </div>
-                        <p>请截图保存此页面，凭抽奖码领取奖品</p>
-                    `;
+                    if (result.prize_name === "谢谢参与") {
+                        // 谢谢参与的特殊显示
+                        resultDiv.className = 'result thanks';
+                        resultDiv.innerHTML = `
+                            <div style="text-align: center;">
+                                <h3>✨ 感谢您的参与！</h3>
+                                <div style="font-size: 64px; margin: 20px 0;">🎁</div>
+                                <p>虽然这次没有中奖，但您的参与就是最大的支持！</p>
+                                <p><strong>姓名：</strong>${result.name}</p>
+                                <p><strong>手机：</strong>${result.phone}</p>
+                                <p style="margin-top: 20px; color: #666;">
+                                    好运总会降临，下次再来试试吧！
+                                </p>
+                            </div>
+                        `;
+                    } else {
+                        // 中奖显示
+                        resultDiv.className = 'result success';
+                        resultDiv.innerHTML = `
+                            <h3>🎉 恭喜您中奖了！</h3>
+                            <p><strong>姓名：</strong>${result.name}</p>
+                            <p><strong>手机：</strong>${result.phone}</p>
+                            <p><strong>奖项：</strong>${result.prize_name}</p>
+                            <p><strong>奖品：</strong>${result.prize_item}</p>
+                            <p><strong>抽奖码：</strong></p>
+                            <div style="font-size: 24px; color: #e74c3c; font-weight: bold; 
+                                      padding: 10px; background: #fff; border-radius: 8px; 
+                                      margin: 10px 0; text-align: center;">
+                                ${result.lottery_code}
+                            </div>
+                            <p>请截图保存此页面，凭抽奖码领取奖品</p>
+                            <div style="margin-top: 15px; padding: 10px; background: #d1ecf1; 
+                                     border-radius: 5px; color: #0c5460;">
+                                💫 幸运之神眷顾您！记得及时兑奖哦～
+                            </div>
+                        `;
+                    }
                 } else {
                     resultDiv.className = 'result error';
                     resultDiv.innerHTML = `
