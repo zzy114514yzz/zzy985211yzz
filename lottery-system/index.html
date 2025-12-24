@@ -231,3 +231,21 @@
     </script>
 </body>
 </html>
+<script>
+    // 页面加载时自动生成正确的二维码
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentUrl = window.location.href; // 自动获取当前网址
+        const qrImage = document.getElementById('qrImage');
+        const urlDisplay = document.getElementById('urlDisplay');
+        
+        // 生成正确的二维码 - 使用当前页面URL
+        qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(currentUrl)}`;
+        urlDisplay.innerHTML = `或访问: <strong>${currentUrl}</strong>`;
+    });
+</script>
+<div class="qr-section">
+    <h3>📱 微信扫码参与</h3>
+    <img class="qr-code" id="qrImage" alt="抽奖二维码"> <!-- 二维码图片会显示在这里 -->
+    <p style="color: #666; margin-top: 10px; font-size: 14px;" id="urlDisplay"></p> <!-- 网址会显示在这里 -->
+</div>
+
