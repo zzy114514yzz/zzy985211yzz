@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>个人学习生活博客</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+:root{--bg:#fff;--text:#222;--card:#f7f8fa;--border:#e4e7ed;--main:#409eff}
+.dark{--bg:#0d0d0d;--text:#eee;--card:#1a1a1a;--border:#333}
+body{background:var(--bg);color:var(--text);transition:.3s}
+header{display:flex;justify-content:space-between;align-items:center;padding:1rem max(1rem,calc(50% - 600px));border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:99}
+.logo{font-size:22px;font-weight:bold;color:var(--main);text-decoration:none}
+.nav-box a,button{margin-left:16px;padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}
+.container{max-width:1200px;margin:0 auto;padding:40px 20px}
+.hero{text-align:center;padding:30px 0 50px}
+.hero h1{margin-bottom:10px}
+.article-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;transition:.2s}
+.card:hover{transform:translateY(-4px);box-shadow:0 6px 18px rgba(0,0,0,.07)}
+.card h2{margin-bottom:8px;font-size:19px}
+.date{font-size:13px;opacity:.6;margin-bottom:10px}
+.desc{opacity:.8;line-height:1.6}
+footer{text-align:center;padding:30px;margin-top:60px;border-top:1px solid var(--border);opacity:.7;font-size:14px}
+/* 后台弹窗样式 */
+.popup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:999}
+.popup-box{width:min(90%,600px);background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:26px}
+.popup h3{margin-bottom:16px}
+input,textarea{width:100%;padding:10px;margin:8px 0 14px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:6px}
+.btns{display:flex;gap:10px;margin-top:10px}
+.btns button{padding:8px 16px}
+.del{border-color:#f56c6c;color:#f56c6c}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header>
+    <a class="logo" href="#">我的学习生活博客</a>
+    <div class="nav-box">
+        <button id="themeBtn">暗黑模式</button>
+        <button id="adminBtn">管理员入口</button>
+    </div>
+</header>
+
+<div class="container">
+    <section class="hero">
+        <h1>学习记录 · 生活随笔</h1>
+        <p>分享日常学习心得与生活感悟，复制链接即可分享给他人查看</p>
+    </section>
+    <div class="article-list" id="articleWrap"></div>
+</div>
+
+<footer>© 2026 个人博客 | 链接可直接分享给好友浏览</footer>
+
+<!-- 登录弹窗 -->
+<div class="popup" id="loginPop">
+    <div class="popup-box">
+        <h3>管理员登录（仅你可写文章）</h3>
+        <input type="password" id="pwdInput" placeholder="输入后台密码">
+        <div class="btns">
+            <button onclick="login()">登录进入后台</button>
+            <button onclick="closePop('loginPop')">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 写文章弹窗 -->
+<div class="popup" id="writePop">
+    <div class="popup-box">
+        <h3>新增/编辑文章</h3>
+        <input id="artTitle" placeholder="文章标题">
+        <textarea id="artContent" rows="8" placeholder="写下你的学习、生活记录..."></textarea>
+        <input type="hidden" id="editId">
+        <div class="btns">
+            <button onclick="saveArticle()">保存文章</button>
+            <button onclick="closePop('writePop')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 后台管理面板 -->
+<div class="popup" id="adminPanel">
+    <div class="popup-box">
+        <h3>文章管理后台</h3>
+        <button onclick="openWrite()">新建文章</button>
+        <div id="manageList" style="margin:15px 0"></div>
+        <button onclick="logout()" style="margin-top:10px">退出登录</button>
+    </div>
+</div>
+
+<script>
+// ========== 1. 替换成你自己的Firebase配置（免费数据库） ==========
+const firebaseConfig = {
+  apiKey: "替换你自己的key",
+  authDomain: "xxx.firebaseapp.com",
+  projectId: "xxx",
+  storageBucket: "xxx.appspot.com",
+  messagingSenderId: "xxx",
+  appId: "xxx"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+// 你的后台登录密码，自行修改
+const ADMIN_PWD = "blog123456";
+
+// 暗黑模式
+document.getElementById('themeBtn').onclick = ()=>document.body.classList.toggle('dark')
+
+// 弹窗控制
+function openPop(id){document.getElementById(id).style.display='flex'}
+function closePop(id){document.getElementById(id).style.display='none'}
+
+// 管理员入口
+document.getElementById('adminBtn').onclick = ()=>openPop('loginPop')
+
+// 登录校验
+function login(){
+    const pwd = document.getElementById('pwdInput').value;
+    if(pwd === ADMIN_PWD){
+        closePop('loginPop');
+        openPop('adminPanel');
+        loadManageList();
+    }else alert("密码错误，无法进入写作后台");
+}
+function logout(){closePop('adminPanel')}
+
+// 加载所有文章到首页（所有人打开链接自动读取）
+async function loadArticles(){
+    const wrap = document.getElementById('articleWrap');
+    wrap.innerHTML = '';
+    const res = await db.collection('articles').orderBy('time','desc').get();
+    res.forEach(doc=>{
+        const d = doc.data();
+        wrap.innerHTML += `
+            <div class="card">
+                <h2>${d.title}</h2>
+                <div class="date">${d.date}</div>
+                <div class="desc">${d.content}</div>
+            </div>
+        `
+    })
+}
+
+// 后台管理列表
+async function loadManageList(){
+    const listDom = document.getElementById('manageList');
+    listDom.innerHTML = '';
+    const res = await db.collection('articles').orderBy('time','desc').get();
+    res.forEach(doc=>{
+        const data = doc.data();
+        listDom.innerHTML += `
+            <div style="margin:8px 0;padding:8px;border:1px solid var(--border);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
+                <span>${data.title}</span>
+                <div>
+                    <button onclick="editArt('${doc.id}')">编辑</button>
+                    <button class="del" onclick="delArt('${doc.id}')">删除</button>
+                </div>
+            </div>
+        `
+    })
+}
+
+// 新建文章弹窗
+function openWrite(){
+    document.getElementById('artTitle').value = '';
+    document.getElementById('artContent').value = '';
+    document.getElementById('editId').value = '';
+    openPop('writePop');
+}
+
+// 保存/修改文章
+async function saveArticle(){
+    const title = document.getElementById('artTitle').value.trim();
+    const content = document.getElementById('artContent').value.trim();
+    const editId = document.getElementById('editId').value;
+    if(!title||!content) return alert("标题和内容不能为空");
+    const now = new Date();
+    const dateStr = now.getFullYear()+"-"+(now.getMonth()+1).toString().padStart(2,'0')+"-"+now.getDate().toString().padStart(2,'0');
+    const data = {title,content,date:dateStr,time:now.getTime()};
+    if(editId){
+        await db.collection('articles').doc(editId).update(data);
+    }else{
+        await db.collection('articles').add(data);
+    }
+    closePop('writePop');
+    loadArticles();
+    loadManageList();
+    alert("保存成功！刷新页面即可看到更新");
+}
+
+// 编辑文章
+async function editArt(id){
+    const doc = await db.collection('articles').doc(id).get();
+    const d = doc.data();
+    document.getElementById('artTitle').value = d.title;
+    document.getElementById('artContent').value = d.content;
+    document.getElementById('editId').value = id;
+    openPop('writePop');
+}
+
+// 删除文章
+async function delArt(id){
+    if(!confirm("确定删除这篇记录？"))return;
+    await db.collection('articles').doc(id).delete();
+    loadArticles();
+    loadManageList();
+}
+
+// 页面加载自动渲染文章
+window.onload = loadArticles;
+</script>
+</body>
+</html>
